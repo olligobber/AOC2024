@@ -5,20 +5,22 @@
 
 # The session cookie for adventofcode.com should be located in ./session_cookie
 # Go to "developer tools -> application -> cookies" in a logged in browser to get it
+# Note your session cookie may change during a year,
+# and the start will often look the same, so make sure to update it
 
-if [ $# -gt 0 ]; then 
+if [ $# -gt 0 ]; then
 	today=$(date -d "December $1" +%d)
 	trimday=$(date -d "December $1" +%-d)
-else 
+else
 	today=$(date +%d)
 	trimday=$(date +%-d)
 fi
 
-if [ $# -gt 1 ]; then 
+if [ $# -gt 1 ]; then
 	year=$2
-else 
+else
 	year=$(date +%Y)
-fi 
+fi
 
 # This won't work well if your local time zone isn't a whole number of hours plus or minus UTC
 localunlocktime=$(date -d 'TZ="EST" 12am' +%-l%P)
