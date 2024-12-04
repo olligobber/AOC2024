@@ -1,4 +1,5 @@
 # Set up the folder and inputs for a day of Advent Of Code
+# Run this as `. makeday.sh` to be left in the folder for that day after the script finishes
 
 # The first argument if provided is the day to set up, and defaults to the current day in local time
 # The second argument if provided is the year to set up, and defaults to the current year in local time
