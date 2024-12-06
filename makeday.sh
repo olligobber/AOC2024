@@ -1,4 +1,5 @@
 # Set up the folder and inputs for a day of Advent Of Code
+# Will enter a bash prompt for the day's folder if it succeeds
 
 # The first argument if provided is the day to set up, and defaults to the current day in local time
 # The second argument if provided is the year to set up, and defaults to the current year in local time
@@ -65,6 +66,7 @@ echo "Cabal build complete"
 # Check if input exists
 if [ -f "input" ]; then
 	echo "  Input data already exists!"
+	bash
 	exit 0
 fi
 
@@ -87,6 +89,7 @@ wget -q --header "Cookie: session=$cookie" "https://adventofcode.com/$year/day/$
 # Report success/failure
 if [ -f "input" ]; then
 	echo "Download complete"
+	bash
 	exit 0
 else
 	echo "Download failed"
