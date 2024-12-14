@@ -1,74 +1,93 @@
 import Data.List.Split (splitOn)
-import Data.PriorityQueue.FingerTree (PQueue)
-import qualified Data.PriorityQueue.FingerTree as PQ
-import Data.Set (Set, member)
-import qualified Data.Set as S
+import Data.Semigroup (stimes)
+import Data.Ratio (numerator, denominator)
 
-data Position = Position { x :: Integer, y :: Integer } deriving (Eq, Ord, Show)
+data Vector t = Vector { x :: t, y :: t } deriving (Eq, Ord, Show)
 
-startPosition :: Position
-startPosition = Position 0 0
+instance Functor Vector where
+	fmap f v = Vector (f $ x v) (f $ y v)
 
-data Button = Button { incx :: Integer, incy :: Integer } deriving (Eq, Ord, Show)
+instance Applicative Vector where
+	f <*> v = Vector (x f $ x v) (y f $ y v)
 
-pressButton :: Button -> Position -> Position
-pressButton b p = Position (x p + incx b) (y p + incy b)
+scaleVector :: Num t => t -> Vector t -> Vector t
+scaleVector s = fmap (s*)
 
-pressTimes :: Integer -> Button -> Position -> Position
-pressTimes n b p = Position (x p + n * incx b) (y p + n * incy b)
+dotProduct :: Num t => Vector t -> Vector t -> t
+dotProduct v w = (\u -> x u + y u) $ (*) <$> v <*> w
 
-parseButton :: String -> Button
-parseButton s = Button xn yn where
-	(_:_:xword:yword:_) = words s
-	xn = read $ drop 2 $ init xword
-	yn = read $ drop 2 $ yword
+instance Num t => Semigroup (Vector t) where
+	v <> w = (+) <$> v <*> w
+	stimes n = scaleVector (fromInteger $ toInteger $ n)
 
-data Problem = Problem { a :: Button, b :: Button, goal :: Position } deriving (Eq, Ord, Show)
+instance Num t => Monoid (Vector t) where
+	mempty = Vector 0 0
 
--- Under-estimate the cost to get to the goal from a position
-estimateProblem :: Position -> Problem -> Integer
-estimateProblem pos problem = min esta estb where
-	esta = 3 * max (est a x incx) (est a y incy)
-	estb = max (est b x incx) (est b y incy)
-	est c z incz = (z (goal problem) - z pos) `div` incz (c problem)
+e1 :: Num t => Vector t
+e1 = Vector 1 0
+
+e2 :: Num t => Vector t
+e2 = Vector 0 1
+
+data Matrix t = Matrix { e1to :: Vector t, e2to :: Vector t} deriving (Eq, Ord, Show)
+
+instance Functor Matrix where
+	fmap f m = Matrix (f <$> e1to m) (f <$> e2to m)
+
+applyMatrix :: Num t => Matrix t -> Vector t -> Vector t
+applyMatrix m v = scaleVector (x v) (e1to m) <> scaleVector (y v) (e2to m)
+
+instance Num t => Num (Matrix t) where
+	m + n = Matrix (e1to m <> e1to n) (e2to m <> e2to n)
+	negate = fmap (negate 1 *)
+	m * n = Matrix (applyMatrix m $ e1to n) (applyMatrix m $ e2to n)
+	abs = id
+	signum = id
+	fromInteger n = (fromInteger n *) <$> Matrix e1 e2
+
+determinant :: Num t => Matrix t -> t
+determinant (Matrix (Vector a c) (Vector b d)) = a * d - b * c
+
+invertMatrix :: (Fractional t, Eq t) => Matrix t -> Maybe (Matrix t)
+invertMatrix m | determinant m == 0 = Nothing
+invertMatrix m@(Matrix (Vector a c) (Vector b d)) = Just $
+	(/ determinant m) <$> Matrix (Vector d (negate c)) (Vector (negate b) a)
+
+data Problem = Problem { buttons :: Matrix Integer, goal :: Vector Integer } deriving (Eq, Ord, Show)
 
 parseProblem :: String -> Problem
-parseProblem s = Problem buttona buttonb goalp where
+parseProblem s = Problem (Matrix buttona buttonb) goalp where
 	(aline:bline:gline:_) = lines s
 	buttona = parseButton aline
 	buttonb = parseButton bline
 	(_:xword:yword:_) = words gline
 	xn = read $ drop 2 $ init $ xword
 	yn = read $ drop 2 $ yword
-	goalp = Position (10000000000000 + xn) (10000000000000 + yn)
+	goalp = Vector (10000000000000 + xn) (10000000000000 + yn)
+	parseButton cline = let
+		(_:_:xword:yword:_) = words cline
+		xn = read $ drop 2 $ init xword
+		yn = read $ drop 2 $ yword
+		in Vector xn yn
 
-type MyPQ = PQueue Integer (Integer, Position)
+costVector :: Vector Integer
+costVector = Vector 3 1
 
-solveProblemFrom :: Problem -> Set Position -> MyPQ -> Maybe Integer
-solveProblemFrom problem tried reached = case PQ.minView reached of
-	Nothing -> Nothing
-	Just ((c, p), rest) ->
-		if p `member` tried then
-			solveProblemFrom problem tried rest
-		else if x p > x (goal problem) || y p > y (goal problem) then
-			solveProblemFrom problem tried rest
-		else if p == goal problem then
-			Just c
-		else
-			let
-				apos = pressButton (a problem) p
-				bpos = pressButton (b problem) p
-				apress = PQ.insert (c+3+estimateProblem apos problem) (c+3, apos)
-				bpress = PQ.insert (c+1+estimateProblem bpos problem) (c+1, bpos)
-			in solveProblemFrom problem (tried <> S.singleton p) (apress $ bpress $ rest)
+isPositiveInt :: Rational -> Maybe Integer
+isPositiveInt r
+	| denominator r == 1 && numerator r >= 0 = Just $ numerator r
+	| otherwise = Nothing
 
-startPQ :: Problem -> PQueue Integer (Integer, Position)
-startPQ problem = PQ.singleton (estimateProblem startPosition problem) (0, startPosition)
+isPositiveIntV :: Vector Rational -> Maybe (Vector Integer)
+isPositiveIntV (Vector a b) = Vector <$> isPositiveInt a <*> isPositiveInt b
 
 solveProblem :: Problem -> Integer
-solveProblem problem = case solveProblemFrom problem S.empty $ startPQ problem of
-	Nothing -> 0
-	Just x -> x
+solveProblem problem = case invertMatrix $ fromInteger <$> buttons problem of
+	Just inv -> case isPositiveIntV $ inv `applyMatrix` fmap fromInteger (goal problem) of
+		Just v -> dotProduct costVector v
+		Nothing -> 0
+	-- The two buttons are parallel vectors
+	Nothing -> error "parallel?"
 
 getInput :: IO [Problem]
 getInput = fmap parseProblem . splitOn "\n\n" <$> readFile "input"
