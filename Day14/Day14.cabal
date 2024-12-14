@@ -1,5 +1,5 @@
 cabal-version: 2.4
-name: AOC2024Day13
+name: AOC2024Day14
 version: 0.1.0.0
 
 author: olligobber
@@ -43,7 +43,7 @@ executable Part2
 		  base ^>= 4.17
 		, split ^>= 0.2.4
 		-- , text ^>= 2.1
-		-- , containers ^>= 0.7
+		, containers ^>= 0.7
 		-- , mtl ^>= 2.2
 		-- , parsec ^>= 3.1
 		-- , fingertree ^>= 0.1.5
